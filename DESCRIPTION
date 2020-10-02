@@ -1,0 +1,19 @@
+Package: emphasisLD
+Type: Package
+Title: EMPHASIS Lineages Dependence Diversification models 
+Version: 0.1.1
+Author: F. Richter, R. Etienne, E. Wit
+Maintainer: F. Richter <f.richter@rug.nl>
+Description:  Set of statistical tools for the study of diversification of species and ecological drivers of macro-evolution.
+License: Creative Commons Public Licenses
+Encoding: UTF-8
+LazyData: false
+Depends:
+    subplex,
+    ggplot2,
+    truncdist,
+    doParallel,
+    parallel
+
+    
+    
