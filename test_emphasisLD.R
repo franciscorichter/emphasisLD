@@ -2,20 +2,21 @@
 load("~/Dropbox/github/emphasisLD/data/FamilyBirdTrees.Rdata")
 phylo = FamilyBirdTrees$Bucconidae$tree
 tree = phylo2emph(phylo)
-diversification_model = list(model="rpd1",pars=c(0.2,0.5,-0.0175))
+diversification_model = list(model="rpd1",pars=c(0.2,0.6,-0.01))
+diversification_model = list(model="ldpd",pars=c(0.2,0.6,-0.02,0))
+
 tree_extant = get_extant(tm,tree)
-brts = c(tree_extant$brts,ct)
-next_bt = min(brts[brts>cbt])
-cbt = 0
 
 ## check if they work 
+sample_tree_full(diversification_model,ct)
+
 sample_tree(diversification_model = diversification_model,phylo = phylo)
 
 l=NULL
 for(i in 1:100){
   tree = sample_tree(diversification_model = diversification_model,
                      phylo = phylo)
-  l = c(l,min(tree$extinct$brts[1],tree$extant$brts[3]))
+  
 }
 
 summary(l)

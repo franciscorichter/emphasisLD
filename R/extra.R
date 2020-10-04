@@ -1,3 +1,79 @@
+get_extant <- function(tm,tree){
+  extinct = tree$extinct[tree$extinct$brts<tm,]
+  extant = tree$extant[tree$extant$brts<=tm,]
+  extant$clade = NULL
+  extant$t_ext = 0
+  extinct$t_ext[tree$t_ext>tm] = 0 
+  
+  extended_tree = rbind(extant,extinct)
+  extended_tree = extended_tree[order(extended_tree$brts),]
+  
+  extant_species = NULL
+  for(i in 1:nrow(extended_tree)){
+    if(extended_tree$t_ext[i]==0){
+      extant_species = rbind(extant_species,data.frame(brts=extended_tree[i,"brts"],
+                                                       parent=extended_tree[i,"parent"],
+                                                       child=extended_tree[i,"child"]))
+    }else{
+      if(extended_tree$t_ext[i]!=999){
+        kids = which((extended_tree$child[i]==extended_tree$parent))
+        K=kids
+        if(length(kids)!=0){
+          while(  length(which((extended_tree$t_ext==0)&kids))==0 ){
+            K2 = NULL
+            for(i in 1:length(kids)){
+              k = which((kids[i]==extended_tree$parent))
+              K2 = c(K2,k)
+            }
+            kids = K2
+          }
+          mk = min(which((extended_tree$t_ext==0)&kids))
+          parents = extended_tree$parent[mk]
+          while(parents[1]!=extended_tree$child[i]){
+            grandparent = extended_tree$par
+            parents = c(1)
+          }
+          mk = min(kids)
+          bt = extended_tree[mk,"brts"]
+          extant_species =  rbind(extant_species,data.frame(brts=extended_tree[i,"brts"],
+                                                            parent=extended_tree[i,"parent"],
+                                                            child=extended_tree[mk,"child"]))
+          extended_tree$t_ext[mk] = 999
+        }
+      }
+    }
+  }
+  map_child = extended_tree$child
+  
+  return(extant_species)
+}
+
+
+transf <- function(name_spe,vec){
+  which(vec==name_spe)
+}
+
+newick<- function(tree,CT){
+  n<-nrow(tree)
+  child.nms<-as.character(tree$child)
+  parent.nms<-as.character(tree$parent)
+  species.nms<-unique(child.nms,parent.nms)
+  n.species<-length(species.nms)
+  CT<-rep(CT,n.species)
+  for (i in seq(n,1)){
+    nw<-paste("(",parent.nms[i],":",as.character(CT[which(species.nms==parent.nms[i])]-tree$brts[i]),",",child.nms[i],":",as.character(CT[which(species.nms==child.nms[i])]-tree$brts[i]),")", sep = "")
+    j<-which(parent.nms[i]==child.nms)
+    rp<-which(parent.nms==child.nms[j])
+    if (length(rp)>0){
+      parent.nms[rp]<-nw
+    }
+    species.nms[which(species.nms==child.nms[j])]<-nw
+    child.nms[j]<-nw
+    CT[j]<-CT[j]-(CT[which(species.nms==parent.nms[i])]-tree$brts[i])
+  }
+  return(paste(child.nms[1],";",sep=""))
+  #return(child.nms)
+}
 
 PDTT_plot <- function(tree){
   ct = max(tree$brts)
@@ -21,37 +97,6 @@ PDTT_plot <- function(tree){
 return(g1)
 }
 
-
-#work in progress
-get_extant <- function(tm,tree){
-  extinct = tree$extinct[tree$extinct$t_ext>tm & tree$extinct$brts<tm,]
-  extant = tree$extant[tree$extant$brts<=tm,]
-  extant$clade = NULL
-  extinct$t_ext = NULL
-  extended_tree = rbind(extant,extinct)
-  extant_species = extended_tree$child
-  for(i in 1:length(extant_species)){
-    parent = extended_tree$parent[i]
-    while(!(parent %in% extant_species)&parent!=0){
-      if(parent %in% tree$extant$child){
-        parent = tree$extant$parent[tree$extant$child==parent]
-      }
-      if(parent %in% tree$extinct$child){
-        parent = tree$extinct$parent[tree$extinct$child==parent]
-      }
-      extended_tree$parent[i] = parent
-    }
-  }
- 
-  extended_tree = extended_tree[order(extended_tree$brts),]
-  return(extended_tree)
-}
-
-get_extant_parent <- function(tree,species,extant){
-  extant_species = extended_tree$child
-  
-}
-
 phylo2emph <- function(phylo){
   #transformation of ultrametric trees into data frame
   tree = DDD::phylo2L(phylo)
@@ -59,7 +104,7 @@ phylo2emph <- function(phylo){
   brts = cumsum(-diff(c(brts_dd,0)))
   
   tree = list(extant = data.frame(brts = c(0,brts[-length(brts)]),
-                                  parent=abs(tree[,2]),
+                                  parent=c(1,abs(tree[,2][-1])),
                                   child=abs(tree[,3])),
               extinct = data.frame(brts = numeric(),
                                    parent = numeric(),

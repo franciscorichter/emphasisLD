@@ -1,9 +1,9 @@
-sample_tree_full <- function(diversification_model,ct){  
+sample_tree_full <- function(diversification_model,ct,nhpp_step=1){  
   
   cbt  = 0 
   tree = list(extant=data.frame(brts=c(0,0),
-                                parent=c(0,1),
-                                child=c(1,2),
+                                parent=c(1,1),
+                                child=c(2,3),
                                 clade=c(0,1)),
               extinct=data.frame(brts=NULL,
                                  parent=NULL,
@@ -13,20 +13,14 @@ sample_tree_full <- function(diversification_model,ct){
   next_bt = 0 
   while(cbt < ct & sum(tree$extant$clade==1)>0 & sum(tree$extant$clade==0)>0){
     
-    tree_extant = get_extant(cbt,tree)
-    brts = c(tree_extant$brts,ct)
+    next_bt = ifelse((ct-next_bt)>2,(next_bt+ct)/2,ct)
     
     ### Draw speciation 
     event_time = draw_event_time(cbt,
-                                 ct,
+                                 next_bt,
                                  diversification_model,
-                                 tree=list(extant=tree_extant,
-                                           extinct=data.frame(brts=NULL,
-                                           parent=NULL,
-                                           child=NULL,
-                                           t_ext=NULL),
-                                           ct = ct))
-    if(event_time<ct){
+                                 tree=tree)
+    if(event_time<next_bt){
       
       ## resolve allocation and update tree
       allocation = draw_allocation_full(event_time,
@@ -49,7 +43,7 @@ sample_tree_full <- function(diversification_model,ct){
       }
 
     }
-    cbt = min(event_time, ct)
+    cbt = min(event_time, next_bt)
   }
   
   return(tree)

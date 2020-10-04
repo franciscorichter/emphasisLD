@@ -3,7 +3,7 @@
 ## used to simulate a full tree
 ## The input is the object model which contains 
 
-sample_tree <- function(diversification_model,phylo=NULL,max_num_species=100000){  
+sample_tree <- function(diversification_model,phylo,max_num_species=100000){  
   
   ## preparation
 
@@ -13,35 +13,23 @@ sample_tree <- function(diversification_model,phylo=NULL,max_num_species=100000)
   
   while(cbt < ct){
     
-    tree_extant = get_extant(tm,tree)
-    brts = c(tree_extant$brts,ct)
+    brts = c(tree$extant$brts,tree$extinct$brts,tree$ct)
     next_bt = min(brts[brts>cbt])
 
     ### Draw speciation 
     next_speciation_time = draw_speciation(cbt,
                     next_bt,
                     diversification_model,
-                    tree=list(extant=tree_extant,
-                              extinct=data.frame(brts=NULL,
-                                                 parent=NULL,
-                                                 child=NULL,
-                                                 t_ext=NULL),
-                              ct = ct),
+                    tree=tree,
                     full_tree=FALSE)
     if(next_speciation_time<next_bt){
       ## resolve allocation
       allocation = draw_allocation(next_speciation_time,
                                  ct,
                                  diversification_model,
-                                 list(extant=tree_extant,
-                                      extinct=data.frame(brts=NULL,
-                                                         parent=NULL,
-                                                         child=NULL,
-                                                         t_ext=NULL),
-                                      ct = ct))
+                                 tree)
  
       ## update tree
-
       tree$extinct = rbind(tree$extinct,allocation)
         
       if(nrow(tree$extinct) > max_num_species){
