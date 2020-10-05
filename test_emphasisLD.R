@@ -12,14 +12,6 @@ sample_tree_full(diversification_model,ct)
 
 sample_tree(diversification_model = diversification_model,phylo = phylo)
 
-l=NULL
-for(i in 1:100){
-  tree = sample_tree(diversification_model = diversification_model,
-                     phylo = phylo)
-  
-}
-
-summary(l)
 
 ## check if emphasis and emphasisLD are equivalent
 emphasis:::augment_tree(brts = as.numeric(ape:::branching.times(phylo)),

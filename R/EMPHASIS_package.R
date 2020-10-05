@@ -1,6 +1,7 @@
 ### EMPHASIS functions
 emphasisLD <- function(phylo,
                      init_par,
+                     model,
                      em_tol=0.25,
                      sample_size_tol=0.005,
                      burnin_sample_size=200,
@@ -8,7 +9,7 @@ emphasisLD <- function(phylo,
                      burnin_iterations = 20,
                      parallel=TRUE){
 
-  brts = ape::branching.times(phy)
+  brts = ape::branching.times(phylo)
   msg1 = paste("Initializing emphasis...")
   msg2 = paste("Age of the tree: ",max(brts))
   msg3 = paste("Number of speciations: ",length(brts))
@@ -17,11 +18,10 @@ emphasisLD <- function(phylo,
   cat(msg1,msg2,msg3,msg4,msg5,sep="\n")
   
   cat( "Performing Phase 1: burn-in",sep= "\n")
-  mc = mcEM(brts = brts,
-            pars = init_par,
+  mc = mcEM(phylo, 
+            pars = init_par, 
             sample_size = burnin_sample_size,
             model = model,
-            soc = soc,
             parallel = parallel,
             print_process = FALSE,
             tol = em_tol,
@@ -83,8 +83,7 @@ emphasisLD <- function(phylo,
 mcEM <- function(phylo, 
                  pars, 
                  sample_size, 
-                 #model, 
-                 #soc, 
+                 model, 
                  tol=0.01,
                  burnin=20,
                  print_process=FALSE,

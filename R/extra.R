@@ -2,52 +2,59 @@ get_extant <- function(tm,tree){
   extinct = tree$extinct[tree$extinct$brts<tm,]
   extant = tree$extant[tree$extant$brts<=tm,]
   extant$clade = NULL
-  extant$t_ext = 0
-  extinct$t_ext[tree$t_ext>tm] = 0 
+  if(nrow(extant)>0) extant$t_ext = 0
+  extinct$t_ext[extinct$t_ext>tm] = 0 
   
-  extended_tree = rbind(extant,extinct)
-  extended_tree = extended_tree[order(extended_tree$brts),]
-  
-  extant_species = NULL
-  for(i in 1:nrow(extended_tree)){
-    if(extended_tree$t_ext[i]==0){
-      extant_species = rbind(extant_species,data.frame(brts=extended_tree[i,"brts"],
-                                                       parent=extended_tree[i,"parent"],
-                                                       child=extended_tree[i,"child"]))
-    }else{
-      if(extended_tree$t_ext[i]!=999){
-        kids = which((extended_tree$child[i]==extended_tree$parent))
-        K=kids
-        if(length(kids)!=0){
-          while(  length(which((extended_tree$t_ext==0)&kids))==0 ){
-            K2 = NULL
-            for(i in 1:length(kids)){
-              k = which((kids[i]==extended_tree$parent))
-              K2 = c(K2,k)
-            }
-            kids = K2
+  ext_tree = rbind(extant,extinct)
+  ext_tree = ext_tree[order(ext_tree$brts),]
+  for(i in 1:nrow(ext_tree)){
+    # check if the species survived to the present, if not
+    if((ext_tree$t_ext[i]!=0)&(ext_tree$t_ext[i]!=999)){
+      # search for an extant lineage
+      kids = (ext_tree$child[i]==ext_tree$parent)
+      key = FALSE
+      while(sum(kids)!=0 & !key){ # until there are no more descendants or...
+        # if there is no child that survives to present, check next generation 
+        if(sum((ext_tree$t_ext[kids]==0))==0){
+          K2 = rep(F,nrow(ext_tree))
+          for(j in which(kids)){
+            k = (ext_tree$child[j]==ext_tree$parent)
+            K2 = K2 | k 
           }
-          mk = min(which((extended_tree$t_ext==0)&kids))
-          parents = extended_tree$parent[mk]
-          while(parents[1]!=extended_tree$child[i]){
-            grandparent = extended_tree$par
-            parents = c(1)
+          kids = K2
+        }else{
+          key = TRUE
+          # Search for species that survive to present
+          mk = min(which(kids&(ext_tree$t_ext==0)))
+          child = ext_tree[mk,"child"]
+          parent = ext_tree[mk,"parent"]
+          ext_tree$t_ext[mk] = 999
+          ext_tree$parent[ext_tree$parent==child] = ext_tree$child[i]
+          # check if parent survived to present, if not
+          while(parent!=ext_tree$child[i]){
+            mk = which(ext_tree$child==parent)
+            child = parent
+            parent = ext_tree[mk,"parent"]
+            ext_tree$t_ext[mk] = 999
+            ext_tree$parent[ext_tree$parent==child] = ext_tree$child[i]
+            
           }
-          mk = min(kids)
-          bt = extended_tree[mk,"brts"]
-          extant_species =  rbind(extant_species,data.frame(brts=extended_tree[i,"brts"],
-                                                            parent=extended_tree[i,"parent"],
-                                                            child=extended_tree[mk,"child"]))
-          extended_tree$t_ext[mk] = 999
+          ext_tree$t_ext[i] = 0
         }
       }
     }
   }
-  map_child = extended_tree$child
-  
-  return(extant_species)
+  ext_tree = ext_tree[ext_tree$t_ext==0,]
+  ext_tree$t_ext = NULL
+  if(nrow(ext_tree)>2){
+    map_child = ext_tree$child[3:nrow(ext_tree)]
+    for(i in 1:length(map_child)){
+      ext_tree[ext_tree$parent==map_child[i],"parent"]=3+i
+      ext_tree[i+2,"child"]=3+i
+    }
+  }
+  return(ext_tree)
 }
-
 
 transf <- function(name_spe,vec){
   which(vec==name_spe)
@@ -112,7 +119,11 @@ phylo2emph <- function(phylo){
                                    t_ext = numeric()),
               
               ct=brts_dd[1])
-  
+  tree$extant[3:nrow(tree$extant),"parent"]=tree$extant[3:nrow(tree$extant),"parent"]+1
+  tree$extant$child = tree$extant$child + 1 
+  tree$extant$parent[1:2]=1
+  tree$extinct$parent=tree$extinct$parent+1
+  tree$extinct$child=tree$extinct$child+1
   return(tree)
 }
 
@@ -155,22 +166,22 @@ GPD2<-function(tm,tree){
 }
 
 
-GPD<-function(tm,tree){
+GPD<-function(tree,ct){
   # input: an ultramedric tree defined by a data.frame
   # with columns brts, parent, 
-  i1<-(tree$brts<=tm)
-  newtree<-tree[i1,]
-  d<-nrow(newtree)
+  #i1<-(tree$brts<=tm)
+  #tree<-tree[i1,]
+  d<-nrow(tree)
   gpd<-matrix(0,ncol=d+1,nrow=d+1)
   sets<-as.list(1:(d+1))
   for (i in d:1){
-    s1<-lapply(sets,function(s,e){if(e%in%s) return(s) else return(-1)},e=newtree$parent[i])
-    s2<-lapply(sets,function(s,e){if(e%in%s) return(s) else return(-1)},e=newtree$child[i])
+    s1<-lapply(sets,function(s,e){if(e%in%s) return(s) else return(-1)},e=tree$parent[i])
+    s2<-lapply(sets,function(s,e){if(e%in%s) return(s) else return(-1)},e=tree$child[i])
     oldset1<-sapply(s1, function(x){x[1]==-1})
     oldset2<-sapply(s2, function(x){x[1]==-1})
     set1<-sets[!oldset1][[1]]
     set2<-sets[!oldset2][[1]]
-    gpd[set1,set2]<-tm-newtree$brts[i]
+    gpd[set1,set2]<-ct-tree$brts[i]
     sets<-c(sets[oldset1&oldset2],list(c(set1,set2)))
   }
   return(gpd+t(gpd))
@@ -214,6 +225,17 @@ extend_tree <- function(tree){
     extended_tree = extended_tree[-1,]
   }
   return(extended_tree)
+}
+
+
+foo <- function(phylo, metric = "colless") {
+  
+  if (metric == "colless") {
+    xx <- apTreeshape:::as.treeshape(phylo)  # convert to apTreeshape format
+    apTreeshape:::colless(xx, "yule")  # calculate colless' metric
+  } else if (metric == "gamma") {
+    ape:::gammaStat(phylo)
+  } else stop("metric should be one of colless or gamma")
 }
 
 #phylodiversity <- function(tm,tree,soc){
