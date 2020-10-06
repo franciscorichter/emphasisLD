@@ -1,3 +1,5 @@
+####  Sample fulll trees 
+
 sample_tree_full <- function(diversification_model,ct,nhpp_step=1){  
   
   cbt  = 0 
@@ -24,8 +26,8 @@ sample_tree_full <- function(diversification_model,ct,nhpp_step=1){
       
       ## resolve allocation and update tree
       allocation = draw_allocation_full(event_time,
-                                  diversification_model,
-                                  tree)
+                                        diversification_model,
+                                        tree)
       row_extant = which(tree$extant$child==allocation$species)
       if(allocation$event=="e"){
         to_add = tree$extant[tree$extant$child==allocation$species,]
@@ -41,7 +43,7 @@ sample_tree_full <- function(diversification_model,ct,nhpp_step=1){
         to_add = data.frame(brts=event_time,parent=allocation$species,child=next_child,clade=tree$extant$clade[row_extant])
         tree$extant = rbind(tree$extant,to_add)
       }
-
+      
     }
     cbt = min(event_time, next_bt)
   }
@@ -72,7 +74,53 @@ draw_allocation_full <- function(event_time,
   if(to=="s") probs = l
   species = sample(current_species,prob = probs,size=1)
   
-
+  
   return(list(event=to,species=species))
 }
 
+
+
+
+draw_event_time <- function(cbt,
+                            next_bt,
+                            diversification_model,
+                            tree){
+  
+  
+  nsr = sum_of_rates
+  
+  key = 0 
+  while(key == 0 & cbt < next_bt){
+    
+    lambda_max = optim(cbt,
+                       fn = nsr,
+                       tree = tree,
+                       diversification_model = diversification_model,
+                       lower = cbt,
+                       upper = next_bt,
+                       method ="L-BFGS-B",
+                       control=list(fnscale=-1))$value
+    
+    u1 = runif(1)
+    if(lambda_max==0){
+      cbt = Inf
+    }else{
+      cbt = cbt - log(x = u1)/lambda_max
+    }
+    
+    if(cbt < next_bt){
+      u2 = runif(1)
+      
+      pt = nsr(cbt,
+               tree,
+               diversification_model)/lambda_max
+      
+      if(u2<pt){
+        key = 1
+      }
+    }
+  }
+  
+  return(cbt)
+  
+}

@@ -1,6 +1,6 @@
 get_extant <- function(tm,tree){
   extinct = tree$extinct[tree$extinct$brts<tm,]
-  extant = tree$extant[tree$extant$brts<=tm,]
+  extant = tree$extant[tree$extant$brts<tm,]
   extant$clade = NULL
   if(nrow(extant)>0) extant$t_ext = 0
   extinct$t_ext[extinct$t_ext>tm] = 0 
@@ -169,8 +169,8 @@ GPD2<-function(tm,tree){
 GPD<-function(tree,ct){
   # input: an ultramedric tree defined by a data.frame
   # with columns brts, parent, 
-  #i1<-(tree$brts<=tm)
-  #tree<-tree[i1,]
+  i1<-(tree$brts<=ct)
+  tree<-tree[i1,]
   d<-nrow(tree)
   gpd<-matrix(0,ncol=d+1,nrow=d+1)
   sets<-as.list(1:(d+1))

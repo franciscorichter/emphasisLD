@@ -1,95 +1,52 @@
-loglik.tree <- function(model){
-  log.lik = get(paste0("loglik.tree.", model))
-  return(log.lik)
-}
-
-# likelihood functions 
-
-loglik.tree.rpd1 <- function(pars,tree){
-  
-  mu = extinction_rate(pars = pars) #constant rate
-  extended_tree = extend_tree(tree)
-  wt = diff(extended_tree$brts)
-  
-  n = tree$traits$n
-  
-  lambda = pmax(0, pars[2] + pars[3] * n)
-  to = extended_tree$event[-nrow(extended_tree)]
-  to = to[-1]
-  rho = pmax(lambda[-length(lambda)] * to + mu * (1-to),0)
-  
-  sigma_over_tree = n*(mu+lambda)*wt
-  
-  log.lik = -sum(sigma_over_tree) + sum(log(rho))
-  return(log.lik)
-}
-
-loglik.tree.rpd5c <- function(pars,tree){
-  if(pars[4]==0){
-    log.lik = loglik.tree.rpd1(pars,tree)
-  }else{
-    to = tree$to
-    to = head(to,-1)
-    to[to==2] = 1
-    
-    mu = max(0,pars[1])
-    wt = diff(c(0,tree$brts))
-    
-    n = tree$n
-    Pt = c(0,tree$pd[-nrow(tree)])
-    pd2 = Pt + n*wt
-    
-    brts_i = tree$brts
-    brts_im1 = c(0,brts_i[-length(brts_i)])
-    
-    lambda = pmax(0,pars[2] + pars[3]*n + pars[4] * (pd2-brts_i)/n )
-    rho = pmax(lambda[-length(n)] * to + mu * (1-to),0)
-    c1 = pars[2]+pars[3]*n+(pars[4]/n)*(Pt-brts_im1*n)
-    c2 = pars[4]*((n-1)/n)
-    inte = NULL
-    for(i in 1:nrow(tree)){
-      if( (brts_im1[i] > (-c1[i]/c2[i])) & (brts_i[i] < (-c1[i]/c2[i])) ){
-        if(c2[i]>0){
-          brts_im1[i] = -c1[i]/c2[i]
-        }else{
-          brts_i[i] = -c1[i]/c2[i]
-        }
-      }
-      inte[i] = n[i]*(mu*wt[i] + c1[i]*(brts_i[i]-brts_im1[i]) + c2[i]*(brts_i[i]^2-brts_im1[i]^2)/2)
-    }
-    log.lik = -sum(inte) + sum(log(rho))
-  }
-  return(log.lik)
-  
-}
-
 ############################################################
 
-loglik.tree.numerical <- function(pars, tree, model){
+loglik.tree <- function(tree, diversification_model){
   to = tree$to
   to = head(to,-1)
   to[to!=0] = 1
   spec_times = tree$brts[c(to,0)==1]
-  #
-  speciations = sapply(spec_times, speciation_rate,tree=tree,pars=pars,model=model,soc=tree$n[1])
-  extinctions = rep(pars[1],sum(to==0))
-  # 
-  inte = intensity.numerical2(tree, pars, model)
-  loglik = sum(log(speciations)) + sum(log(extinctions)) - sum(inte)
+  
+  brts = c(tree$extant$brts,tree$extinct$brts)
+  brts = brts[order(brts)]
+  rates = sapply(brts, rate_at_bt, tree=tree, diversification_model=diversification_model)
+  
+  inte = intensity(tree, diversification_model)
+  loglik = sum(log(rates)) + sum(log(extinctions)) - sum(inte)
   return(loglik)
 }
 
+rate_at_bt <- function(tm,tree,diversification_model){
+  # oonly for rpd1 for the moment
+  if(tm%in%tree$extinct$t_ext){
+    val = extinction_rate(tm,tree,diversification_model)[1]
+  }else{
+    val = speciation_rate(tm,tree,diversification_model)[1]
+  }
+  return(val)
+}
 
-
-intensity.numerical2 <- function(tree, pars, model){
+intensity <- function(tree, pars, model){
   nh_rate <- function(x){
-    speciation_rate(tm=x,tree = tree,pars = pars,model = model,soc=tree$n[1],sum_lambda = TRUE)+extinction_rate(tm=x,tree = tree,pars = pars,model = model,soc=tree$n[1],sum_rate = TRUE)
+    speciation_rate(tm=x,
+                    tree = tree,
+                    pars = pars,
+                    model = model,
+                    soc=tree$n[1],
+                    sum_lambda = TRUE)+
+      extinction_rate(tm=x,
+                      tree = tree,
+                      pars = pars,
+                      model = model,
+                      soc=tree$n[1],
+                      sum_rate = TRUE)
   }
   brts_i = tree$brts
   brts_im1 = c(0,brts_i[-length(brts_i)])
   inte = vector(mode="numeric",length = length(brts_i))
   for(i in 1:length(brts_i)){
-    inte[i] = pracma:::quad(f = Vectorize(nh_rate),xa = brts_im1[i]+0.00000000001,xb = brts_i[i])
+    inte[i] = pracma:::quad(f = Vectorize(nh_rate),
+                            xa = brts_im1[i]+0.00000000001,
+                            xb = brts_i[i])
   }
   return(inte)
 }

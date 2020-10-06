@@ -81,89 +81,109 @@ emphasisLD <- function(phylo,
 }
 
 mcEM <- function(phylo, 
-                 pars, 
+                 diversification_model, 
                  sample_size, 
-                 model, 
                  tol=0.01,
                  burnin=20,
-                 print_process=FALSE,
+                 vebose=TRUE,
                  parallel=TRUE,
                  cores=(parallel::detectCores()-1)){
   mcem = NULL
   sde = 10; i=0
   times = NULL
+  PARS = NULL
   while(sde > tol){
     i = i+1
-    st = mcE_step(brts = brts, 
-                  pars = pars, 
-                  sample_size = sample_size, 
-                  model = model, 
-                  no_cores = cores, 
-                  parallel = parallel,
-                  soc = soc)
-    if(max(st$weight[!is.na(st$weight)])==0){
-      print(st)
-      stop("Only zero likelihood trees, maybe there is underflow")
-    }
-    M = M_step(st = st, init_par = pars, model = model)
-    if(!is.infinite(M$po$value) & !is.na(st$fhat)){ 
-      pars = M$po$par
-      mcem = rbind(mcem,data.frame(par1=pars[1],
-                                   par2=pars[2],
-                                   par3=pars[3],
-                                   par4=pars[4],
-                                   fhat=st$fhat,
-                                   sample_size=sample_size))
-    }
-    if(print_process){
-      print(paste("(mean of) loglikelihood estimation: ",mean(mcem$fhat)))
-    }
-    times = c(times,st$E_time+M$M_time)
-    time_p_it = mean(times)
-    if(i>burnin){
-      mcem_est = mcem[floor(nrow(mcem)/2):nrow(mcem),]
-      mcem_est = mcem_est[is.finite(mcem_est$fhat),]
-      sde0 = sde
-      sde = sd(mcem_est$fhat)/sqrt(nrow(mcem_est))
-      mde = mean(mcem_est$fhat)
-      msg = paste("Iteration:",i," SE of the loglikelihood: ",sde)
-      cat("\r",msg) 
-    }else{
-      msg = paste("Remining time (burn-in): ",round(time_p_it*(burnin-i),digits = 0),"sec")
-      cat("\r",msg) 
+    results = em_r(phylo,
+                   diversification_model,
+                   sample_size = sample_size, 
+                   no_cores = cores, 
+                   parallel = parallel)
+    
+    pars = results$estimates
+    PARS = rbind(PARS,pars)
+    log_fhat = c(log_fhat, results$log_fhat)
+
+    if (i > burnin + 2) {
+      
+      tail_mcem = tail(log_fhat,length(log_fhat)-burnin)
+      sde = sd(tail_mcem) / sqrt(length(tail_mcem))
+      if (verbose) {
+        msg <- paste("Iteration:", i, " SE of the loglikelihood: ", sde)
+        cat("\r", msg)
+      }
+    } else {
+      if (verbose) {
+         msg <- paste("Performing burn-in, should take short time ")
+         cat("\r", msg)
+      }
     }
   }
-  return(list(mcem=mcem))
+  rownames(PARS) = NULL
+  colnames(PARS) = paste0("par",1:ncol(PARS))
+  
+  return(list(PARS = PARS,log_fhat=log_fhat))
 }
 
 ##############################
-####### E-step 
 
-mcE_step <- function(brts,pars,sample_size,model,no_cores=2,seed=0,parallel=TRUE,soc=2,printprocess=TRUE){
+em_r <- function(phylo,
+                 diversification_model,
+                 sample_size = sample_size, 
+                 no_cores = cores, 
+                 parallel = parallel){
+  ST = mcE_step(phylo,
+                diversification_model,
+                sample_size = sample_size, 
+                no_cores = cores, 
+                parallel = parallel)
+  w = get_weights(ST = ST,
+                  diversification_model = diversification_model)
+  if(max(w$weight)==0){
+    print(st)
+    stop("Only zero likelihood trees, maybe there is underflow")
+  }
+  st = list(trees=ST$trees,weights=w$weights)
+  M = M_step(st = st, init_par = pars, model = diversification_model$model)
+  return(list(estimates=M$po$value,log_fhat=w$log_fhat))
+}
+
+
+
+####### E-step 
+mcE_step <- function(phylo,
+                     diversification_model,
+                     sample_size,
+                     no_cores=2,
+                     seed=0,
+                     parallel=TRUE){
   if(seed>0) set.seed(seed)
   time = proc.time()
   if(!parallel){
-    st =  lapply(1:sample_size,function(i){augment_tree(brts = brts,pars = pars,model=model,soc=soc)} )
+    st =  lapply(1:sample_size,function(i){sample_tree(diversification_model = diversification_model,phylo = phylo)} )
   }else{
-    st = mclapply(1:sample_size,function(i){augment_tree(brts = brts,pars = pars,model=model,soc=soc)},mc.cores = no_cores)
+    st = mclapply(1:sample_size,function(i){sample_tree(diversification_model = diversification_model,phylo = phylo)},mc.cores = no_cores)
   }
   trees = lapply(st,function(list) list$tree)
-  dim = sapply(st,function(list) nrow(list$tree))
-  
-  ####
-  logf = sapply(trees,loglik.tree(model), pars=pars)
-  logg = sapply(trees,sampling_prob, pars=pars,model=model)
   E_time = get.time(time)
+  En = list(trees=trees,E_time=E_time)
+  return(En)
+
+}
+
+get_weights <- function(ST,diversification_model){
+  pars = diversification_model$pars
+  model = diversification_model$model
+  logf = sapply(ST,loglik.tree(model), pars=pars)
+  logg = sapply(ST,sampling_prob, pars=pars,model=model)
   log_weights = logf-logg
   prop_const = max(log_weights)
   log_weights_norm = log_weights - prop_const
   w = exp(log_weights_norm)
   log_fhat = log(mean(w)) + prop_const
-  ####
-  En = list(weights=w,trees=trees,fhat=log_fhat,logf=logf,logg=logg,dim=dim,E_time=E_time)
-  return(En)
-
+  return(list(weights=w,log_fhat=log_fhat))
 }
+
 
 ##############################
 ####### M-step 

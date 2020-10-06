@@ -32,45 +32,22 @@ sum_of_rates <- function(tm,
   return(val)
 }
 
-##########################################################
-##### lineages dependent speciation rate #################
-##########################################################
-
-lambda.ldpd <- function(tm,
-                        tree,
-                        pars,
-                        sum_rates=FALSE){
-  tree_extant = get_extant(tm,tree)
-  gpd = GPD(tm,tree_extant)
-  N = nrow(gpd)
-  lambdas = rep(max(0,pars[2] + pars[3]*N),times=N) + pars[4]*colSums(gpd)/(N-1)
-  if(sum_rates) lambdas = sum(lambdas)
-  return(lambdas)
-}
-
-mu.constant <- function(tm,
-                        tree,
-                        pars,
-                        sum_rates=FALSE){
-  mu = max(0,pars[1])
-  N = sapply(tm, n_from_time,tree=tree)
-  if(sum_rates){
-    mu = N*mu
-  }else{
-    mu = rep(mu,N)
-  }
-  return(mu)
-}
-
-
-nh_speciation_rate <- function(tm,tree,diversification_model){
-  
+nh_rate <- function(x,diversification_model,tree){
   speciation_rate(tm,
                   tree,
                   diversification_model,
-                  sum_rates=TRUE)*(1-exp(-diversification_model$pars[1]*(tree$ct-tm)))
-
+                  sum_rates= TRUE)*
+    (1-exp( -(tree$ct-x) * extinction_rate(x,
+                                           tree,
+                                           diversification_model) ))
 }
+
+
+##########################################################
+##### model-specific rates #################
+##########################################################
+
+
 
 # Speciations rates 
 
@@ -91,11 +68,31 @@ lambda.rpd5c <- function(tm,tree,pars,sum_lambda=FALSE){
   
 }
 
-nh_rate <- function(x,model,pars,tree){
-  speciation_rate(tm=x,
-                  tree = tree,
-                  pars = pars,
-                  model = model,
-                  sum_lambda = TRUE)*
-    (1-exp( -(tree$ct-x) * extinction_rate(pars = pars) ))
+lambda.ldpd <- function(tm,
+                        tree,
+                        pars,
+                        sum_rates=FALSE){
+  tree_extant = get_extant(tm,tree)
+  gpd = GPD(tree_extant,tm)
+  N = nrow(gpd)
+  lambdas = rep(max(0,pars[2] + pars[3]*N),times=N) + pars[4]*colSums(gpd)/(N-1)
+  if(sum_rates) lambdas = sum(lambdas)
+  return(lambdas)
 }
+
+# extnction rates
+
+mu.constant <- function(tm,
+                        tree,
+                        pars,
+                        sum_rates=FALSE){
+  mu = max(0,pars[1])
+  N = sapply(tm, n_from_time,tree=tree)
+  if(sum_rates){
+    mu = N*mu
+  }else{
+    mu = rep(mu,N)
+  }
+  return(mu)
+}
+
