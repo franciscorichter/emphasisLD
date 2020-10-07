@@ -2,7 +2,7 @@
 
 sample_tree_full <- function(diversification_model,ct,nhpp_step=1){  
   
-  cbt  = 0 
+  cbt  = 0.00000000001
   tree = list(extant=data.frame(brts=c(0,0),
                                 parent=c(1,1),
                                 child=c(2,3),

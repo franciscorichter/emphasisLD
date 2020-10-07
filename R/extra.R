@@ -171,6 +171,12 @@ GPD<-function(tree,ct){
   # with columns brts, parent, 
   i1<-(tree$brts<=ct)
   tree<-tree[i1,]
+  if(tree$brts[1]==tree$brts[2]){
+    tree = tree[-1,]
+    tree$parent = tree$parent - 1
+    tree$child = tree$child -1
+    tree$parent[1] = 1
+  }
   d<-nrow(tree)
   gpd<-matrix(0,ncol=d+1,nrow=d+1)
   sets<-as.list(1:(d+1))
@@ -191,12 +197,16 @@ GPD<-function(tree,ct){
 
 n_from_time <- function(tm,tree){
   # return N at tm.
-  extended_tree = extend_tree(tree)
+  if(tm==0){
+    N=2
+  }else{
+    extended_tree = extend_tree(tree)
 
-  n = cumsum(extended_tree$event)+cumsum(extended_tree$event-1)+1
-  brts = extended_tree$brts
-  if(tm==0) tm = 0.000000000000001
-  N = n[max(which(brts < tm))]
+    n = cumsum(extended_tree$event)+cumsum(extended_tree$event-1)+1
+    brts = extended_tree$brts
+    if(tm==0) tm = 0.000000000000001
+    N = n[max(which(brts < tm))]
+  }
   return(N)
 } 
 

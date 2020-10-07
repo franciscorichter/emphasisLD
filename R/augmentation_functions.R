@@ -60,7 +60,7 @@ draw_speciation <- function(cbt,
     if(is.null(tree)){
       stop("The extant tree is needed as input")
     }
-    nsr = nh_speciation_rate
+    nsr = nh_rate
   }
   key = 0 
   while(key == 0 & cbt < next_bt){
@@ -84,9 +84,9 @@ draw_speciation <- function(cbt,
     if(cbt < next_bt){
       u2 = runif(1)
       
-      pt = nsr(cbt,
-               tree,
-               diversification_model)/lambda_max
+      pt = nsr(tm=cbt,
+               tree=tree,
+               diversification_model=diversification_model)/lambda_max
       
       if(u2<pt){
         key = 1

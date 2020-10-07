@@ -132,7 +132,7 @@ em_r <- function(phylo,
                  sample_size = sample_size, 
                  no_cores = cores, 
                  parallel = parallel){
-  ST = mcE_step(phylo,
+  ST = MC_augmentation(phylo,
                 diversification_model,
                 sample_size = sample_size, 
                 no_cores = cores, 
@@ -148,26 +148,22 @@ em_r <- function(phylo,
   return(list(estimates=M$po$value,log_fhat=w$log_fhat))
 }
 
-
-
 ####### E-step 
-mcE_step <- function(phylo,
+MC_augmentation <- function(phylo,
                      diversification_model,
                      sample_size,
                      no_cores=2,
                      seed=0,
                      parallel=TRUE){
   if(seed>0) set.seed(seed)
-  time = proc.time()
+
   if(!parallel){
     st =  lapply(1:sample_size,function(i){sample_tree(diversification_model = diversification_model,phylo = phylo)} )
   }else{
     st = mclapply(1:sample_size,function(i){sample_tree(diversification_model = diversification_model,phylo = phylo)},mc.cores = no_cores)
   }
-  trees = lapply(st,function(list) list$tree)
-  E_time = get.time(time)
-  En = list(trees=trees,E_time=E_time)
-  return(En)
+  
+  return(st)
 
 }
 
