@@ -22,7 +22,7 @@ rate_at_bt <- function(tm,tree,diversification_model){
   return(val)
 }
 
-intensity <- function(tree, diversification_model){
+intensity <- function(tree, diversification_model){ # 
   brts_i = sort(c(tree$extant$brts[-(1:2)],tree$extinct$brts,tree$extinct$t_ext))
   brts_im1 = c(0,brts_i[-length(brts_i)])
   inte = vector(mode="numeric",length = length(brts_i))

@@ -48,16 +48,8 @@ ltt_stat <- function(brts,est_seq){
   sum(abs(est_esq$mean-pr))*0.1
 }
 
-get_required_sampling_size <- function(M,tol=.05){
-  n <- M$sample_size
-  f<-  M$fhat
-  hlp<-MASS:::rlm(f~I(1/n),weights = n)
-  ab<-coef(hlp)
-  
-  f.r<-ab[1]-tol
-  n.r<-ceiling(ab[2]/(f.r-ab[1]))
-  return(n.r)
-}
+
+
 
 sample_size_determination <- function(f,n,tol=0.05){    
 
@@ -88,6 +80,40 @@ sample_size_determination <- function(f,n,tol=0.05){
 }
 
 
+PDTT_plot <- function(tree){
+  ct = max(tree$brts)
+  times = seq(0,ct,length.out = 1000)
+  times = sort(times,decreasing = T)
+  PD=NULL
+  for(i in 1:length(times)){
+    G=GPD(times[i],tree[-1,])
+    
+    PD=rbind(PD,data.frame(time=rep(times[i],nrow(G)),
+                           P=colSums(G)/(nrow(G)-1),
+                           lineage=as.character(1:nrow(G))))
+  }
+  g1 = ggplot(PD)+
+    geom_line(aes(x=time,y=P,colour=lineage,alpha=0.5))+
+    theme(legend.position = "none",
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          panel.background = element_blank(), 
+          axis.line = element_line(colour = "black"))
+  return(g1)
+}
+
+AIC_llik <- function(LogLik,k){
+  aic <- (2*k)-(2*LogLik)
+  return(aic)
+}
+
+AICw <- function(l1,l2,k1,k2){
+  IC <- AIC_llik(c(l1,l2),c(k1,k2))
+  bestmodelIC <- min(IC)
+  weights <- exp(-0.5*(IC-bestmodelIC))
+  weights <- weights/sum(weights)
+  return(weights[1])
+}
 # Diagnostics function which recives an "emph object", which is the output of the emphasis function. 
 emphasis_diagnostics <- function(MC){
 

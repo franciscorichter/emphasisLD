@@ -1,7 +1,7 @@
 ####  Sample fulll trees 
 
 sample_tree_full <- function(diversification_model,ct,nhpp_step=1){  
-  
+  # test1Ok
   cbt  = 0.00000000001
   tree = list(extant=data.frame(brts=c(0,0),
                                 parent=c(1,1),

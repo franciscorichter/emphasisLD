@@ -5,7 +5,7 @@ tree = phylo2emph(phylo)
 diversification_model = list(model="rpd1",pars=c(0.2,0.6,-0.01))
 diversification_model = list(model="ldpd",pars=c(0.2,0.6,-0.02,0))
 
-tree_extant = get_extant(tm,tree)
+tree_extant = get_extant(tm = 10,tree = tree)
 
 ## check if they work 
 sample_tree_full(diversification_model,ct)
@@ -30,3 +30,11 @@ lambda.rpd1(6,tree,diversification_model$pars)
 lambda.ldpd(6,tree,c(diversification_model$pars,0.1))
 
 ## check if both models are equivalent for 
+
+
+##
+sample_size=100
+diversification_model = list(model="rpd1",
+                             pars=c(0.1,0.5,-0.175,0))
+
+em_r(phylo = phylo,diversification_model = diversification_model,sample_size = sample_size)

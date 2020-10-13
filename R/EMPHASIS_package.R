@@ -149,7 +149,7 @@ em_r <- function(phylo,
 }
 
 ####### E-step 
-MC_augmentation <- function(phylo,
+MC_augmentation <- function(phylo,   # test1Ok
                      diversification_model,
                      sample_size,
                      no_cores=2,

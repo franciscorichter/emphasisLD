@@ -5,7 +5,7 @@
 
 
 ## sampling missing part of observed tree
-sample_tree <- function(diversification_model,
+sample_tree <- function(diversification_model,  # test1Ok
                         phylo,
                         max_num_species=100000){  
   
