@@ -1,64 +1,102 @@
 get_extant <- function(tm,tree){ #test1Ok, test2Ok
   # obtain extant tree from full tree
+  if (tm==0){tm<-1e-10}
   extinct = tree$extinct[tree$extinct$brts<tm,]
   extant = tree$extant[tree$extant$brts<tm,]
-  extant$clade = NULL
+  extant$clade<-NULL
   if(nrow(extant)>0) extant$t_ext = 0
   extinct$t_ext[extinct$t_ext>tm] = 0 
   
   ext_tree = rbind(extant,extinct)
   ext_tree = ext_tree[order(ext_tree$brts),]
-  for(i in 1:nrow(ext_tree)){
+  if (ext_tree$child[1]!=ext_tree$parent[2]){
+    ext_tree[c(1,2),]<-ext_tree[c(2,1),]
+  }
+  i=1
+  while (i<=nrow(ext_tree)){
     # check if the species survived to the present, if not
-    if((ext_tree$t_ext[i]!=0)&(ext_tree$t_ext[i]!=999)){
+    if(ext_tree$t_ext[i]!=0){
       # search for an extant lineage
-      kids = (ext_tree$child[i]==ext_tree$parent)
-      key = FALSE
-      while(sum(kids)!=0 & !key){ # until there are no more descendants or...
-        # if there is no child that survives to present, check next generation 
-        if(sum((ext_tree$t_ext[kids]==0))==0){
-          K2 = rep(F,nrow(ext_tree))
-          for(j in which(kids)){
-            k = (ext_tree$child[j]==ext_tree$parent)
-            K2 = K2 | k 
+      kids = (ext_tree$child[i]==ext_tree$parent & ext_tree$brts>ext_tree$brts[i])
+      if (sum(kids)>0){
+        while (sum(kids)>0){
+          first.kid<-min(which(kids))
+          first.kid.nm<-ext_tree$child[first.kid]
+          extinct.parent<-ext_tree$child[i]
+          ext_tree$parent[ext_tree$parent==extinct.parent]<-first.kid.nm
+          ext_tree$child[i]<-first.kid.nm
+          ext_tree$t_ext[i]<-ext_tree$t_ext[first.kid]
+          ext_tree<-ext_tree[-first.kid,]
+          if (ext_tree$t_ext[i]!=0){
+            kids = (ext_tree$child[i]==ext_tree$parent)
+          } else {
+            kids = 0
           }
-          kids = K2
-        }else{
-          key = TRUE
-          # Search for species that survive to present
-          mk = min(which(kids&(ext_tree$t_ext==0)))
-          child = ext_tree[mk,"child"]
-          parent = ext_tree[mk,"parent"]
-          ext_tree$t_ext[mk] = 999
-          ext_tree$parent[ext_tree$parent==child] = ext_tree$child[i]
-          # check if parent survived to present, if not
-          while(parent!=ext_tree$child[i]){
-            mk = which(ext_tree$child==parent)
-            child = parent
-            parent = ext_tree[mk,"parent"]
-            ext_tree$t_ext[mk] = 999
-            ext_tree$parent[ext_tree$parent==child] = ext_tree$child[i]
-            
-          }
-          ext_tree$t_ext[i] = 0
         }
+      } else {
+        ext_tree<-ext_tree[-i,]
+        i<-i-1
       }
     }
+    i<-i+1
   }
-  ext_tree = ext_tree[ext_tree$t_ext==0,]
-  ext_tree$t_ext = NULL
-  if(nrow(ext_tree)>2){
-    map_child = ext_tree$child[3:nrow(ext_tree)]
-    for(i in 1:length(map_child)){
-      ext_tree[ext_tree$parent==map_child[i],"parent"]=3+i
-      ext_tree[i+2,"child"]=3+i
-    }
-  }
+  ext_tree$t_ext<-NULL
   return(ext_tree)
 }
 
-transf <- function(name_spe,vec){
-  which(vec==name_spe)
+etree2phylo <- function(etree){
+  extant = get_extant(etree$ct,etree)
+  nw = newick(tree = extant,CT = etree$ct)
+  tr = ape:::read.tree(text=nw)
+  return(tr)
+}
+  
+phylo2etree <- function(phylo){
+  # test1Ok, test2Ok
+  #transformation of ultrametric trees into data frame
+  tree = DDD::phylo2L(phylo)
+  brts_dd = tree[,1]
+  brts = cumsum(-diff(c(brts_dd,0)))
+  
+  tree = list(extant = data.frame(brts = c(0,brts[-length(brts)]),
+                                  parent=c(1,abs(tree[,2][-1])),
+                                  child=abs(tree[,3])),
+              extinct = data.frame(brts = numeric(),
+                                   parent = numeric(),
+                                   child = numeric(),
+                                   t_ext = numeric()),
+              
+              ct=brts_dd[1])
+  tree$extant[3:nrow(tree$extant),"parent"]=tree$extant[3:nrow(tree$extant),"parent"]+1
+  tree$extant$child = tree$extant$child + 1 
+  tree$extant$parent[1:2]=1
+  tree$extinct$parent=tree$extinct$parent+1
+  tree$extinct$child=tree$extinct$child+1
+  #NOTE: This next line is a hack
+  tree$extant[2,2]<-2
+  class(tree)="etree"
+  return(tree)
+}
+
+GPD<- function(tree,tm){
+  # input: an ultramedric tree defined by a data.frame
+  # with columns brts, parent, child
+  # the first two rows are 
+  n<-nrow(tree)
+  child.nms<-as.character(tree$child)
+  parent.nms<-as.character(tree$parent)
+  species.nms<-child.nms
+  gpd<-matrix(0,ncol=n,nrow=n)
+  dimnames(gpd)<-list(species.nms,species.nms)
+  species<-as.list(1:n)
+  for (i in seq(n,2)){
+    p.set<- species[[which(species.nms==parent.nms[i])]]
+    c.set<- species[[which(species.nms==child.nms[i])]]
+    gpd[p.set,c.set]<- tm-tree$brts[i]
+    species[[which(species.nms==parent.nms[i])]]<-c(p.set,c.set)
+  }
+  gpd<-gpd+t(gpd)
+  return(gpd)
 }
 
 newick<- function(tree,CT){
@@ -83,6 +121,12 @@ newick<- function(tree,CT){
   #return(child.nms)
 }
 
+
+###
+
+transf <- function(name_spe,vec){
+  which(vec==name_spe)
+}
 
 
 phylo2emph <- function(phylo){
@@ -109,62 +153,6 @@ phylo2emph <- function(phylo){
   return(tree)
 }
 
-
-
-# emphasisLD
-GPD2<-function(tm,tree){
-  # input: an ultramedric tree defined by a data.frame
-  # with columns brts, parent, 
-  i1<-tree$brts<=tm 
-  newtree<-tree[i1,]
-  d<-nrow(newtree)
-  gpd<-matrix(0,ncol=d+1,nrow=d+1)
-  sets<-as.list(1:(d+1))
-  #sets <-as.list(0:(d))
-  map_child = 1:length(newtree$child)
-  newtree$map_child = map_child
-  map_parent = 1:length(newtree$parent)
-  newtree$map_parent = map_parent
-  for (i in d:1){
-    s1<-lapply(sets,function(s,e){if(e%in%s) return(s) else return(-1)},e=newtree$map_parent[i])
-    s2<-lapply(sets,function(s,e){if(e%in%s) return(s) else return(-1)},e=newtree$map_child[i])
-    oldset1<-sapply(s1, function(x){x[1]==-1})
-    oldset2<-sapply(s2, function(x){x[1]==-1})
-    set1<-sets[!oldset1][[1]]
-    set2<-sets[!oldset2][[1]]
-    gpd[set1,set2]<-tm-newtree$brts[i]
-    sets<-c(sets[oldset1&oldset2],list(c(set1,set2)))
-  }
-  return(gpd+t(gpd))
-}
-
-
-GPD<-function(tree,ct){
-  # input: an ultramedric tree defined by a data.frame
-  # with columns brts, parent, 
-  i1<-(tree$brts<=ct)
-  tree<-tree[i1,]
-  if(tree$brts[1]==tree$brts[2]){
-    tree = tree[-1,]
-    tree$parent = tree$parent - 1
-    tree$child = tree$child -1
-    tree$parent[1] = 1
-  }
-  d<-nrow(tree)
-  gpd<-matrix(0,ncol=d+1,nrow=d+1)
-  sets<-as.list(1:(d+1))
-  for (i in d:1){
-    s1<-lapply(sets,function(s,e){if(e%in%s) return(s) else return(-1)},e=tree$parent[i])
-    s2<-lapply(sets,function(s,e){if(e%in%s) return(s) else return(-1)},e=tree$child[i])
-    oldset1<-sapply(s1, function(x){x[1]==-1})
-    oldset2<-sapply(s2, function(x){x[1]==-1})
-    set1<-sets[!oldset1][[1]]
-    set2<-sets[!oldset2][[1]]
-    gpd[set1,set2]<-ct-tree$brts[i]
-    sets<-c(sets[oldset1&oldset2],list(c(set1,set2)))
-  }
-  return(gpd+t(gpd))
-}
 
 # more utilities  (emphasis)
 
