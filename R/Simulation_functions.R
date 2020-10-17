@@ -2,9 +2,9 @@
 
 sample_tree_full <- function(diversification_model,ct,nhpp_step=1){  
   # test1Ok
-  cbt  = 0.00000000001
+  cbt  = 1e-10
   tree = list(extant=data.frame(brts=c(0,0),
-                                parent=c(1,1),
+                                parent=c(1,2),
                                 child=c(2,3),
                                 clade=c(0,1)),
               extinct=data.frame(brts=NULL,
@@ -47,7 +47,8 @@ sample_tree_full <- function(diversification_model,ct,nhpp_step=1){
     }
     cbt = min(event_time, next_bt)
   }
-  
+  tree$extant$clade=NULL
+  class(tree)="etree"
   return(tree)
 }
 
@@ -72,8 +73,8 @@ draw_allocation_full <- function(event_time,
                                          tree = tree)
   if(to=="e") probs = m
   if(to=="s") probs = l
-  species = sample(current_species,prob = probs,size=1)
   
+  species = sample(current_species,prob = probs,size=1)
   
   return(list(event=to,species=species))
 }
@@ -91,7 +92,6 @@ draw_event_time <- function(cbt,
   
   key = 0 
   while(key == 0 & cbt < next_bt){
-    
     lambda_max = optim(cbt,
                        fn = nsr,
                        tree = tree,
@@ -124,3 +124,4 @@ draw_event_time <- function(cbt,
   return(cbt)
   
 }
+

@@ -92,6 +92,7 @@ GPD<- function(tree,tm){
   return(gpd)
 }
 
+
 newick<- function(tree,CT){
   n<-nrow(tree)
   child.nms<-as.character(tree$child)
