@@ -1,51 +1,44 @@
-get_extant <- function(tm,tree){ #test1Ok, test2Ok
+get_extant <- function(tm,tree){
+  origin = setdiff(c(tree$extant$parent,tree$extinct$parent),c(tree$extant$child,tree$extinct$child))
   # obtain extant tree from full tree
-  if (tm==0){tm<-1e-10}
-  extinct = tree$extinct[tree$extinct$brts<tm,]
-  extant = tree$extant[tree$extant$brts<tm,]
-  extant$clade<-NULL
-  if(nrow(extant)>0) extant$t_ext = 0
-  extinct$t_ext[extinct$t_ext>tm] = 0 
-  
-  ext_tree = rbind(extant,extinct)
-  ext_tree = ext_tree[order(ext_tree$brts),]
-  if (ext_tree$child[1]!=ext_tree$parent[2]){
-    ext_tree[c(1,2),]<-ext_tree[c(2,1),]
-  }
-  i=1
-  while (i<=nrow(ext_tree)){
-    # check if the species survived to the present, if not
-    if(ext_tree$t_ext[i]!=0){
-      # search for an extant lineage
-      kids = (ext_tree$child[i]==ext_tree$parent & ext_tree$brts>ext_tree$brts[i])
-      if (sum(kids)>0){
-        while (sum(kids)>0){
-          first.kid<-min(which(kids))
-          first.kid.nm<-ext_tree$child[first.kid]
-          extinct.parent<-ext_tree$child[i]
-          ext_tree$parent[ext_tree$parent==extinct.parent]<-first.kid.nm
-          ext_tree$child[i]<-first.kid.nm
-          ext_tree$t_ext[i]<-ext_tree$t_ext[first.kid]
-          ext_tree<-ext_tree[-first.kid,]
-          if (ext_tree$t_ext[i]!=0){
-            kids = (ext_tree$child[i]==ext_tree$parent)
-          } else {
-            kids = 0
-          }
+  if (nrow(tree$extinct)>0){
+    if (tm==0){tm<-1e-10}
+    tree$extant$clade<-NULL
+    extinct = tree$extinct[tree$extinct$brts<tm & tree$extinct$t_ext<tm,]
+    extinct = extinct[order(extinct$brts),]
+    extant = rbind(tree$extant[tree$extant$brts<tm,],
+                   tree$extinct[tree$extinct$brts<tm & tree$extinct$t_ext>=tm,-4])
+    extant = extant[order(extant$brts),]
+    extinct$t_ext = NULL
+    if (nrow(extinct)>0){
+      i<-1
+      while (i <= nrow(extant)){
+        if ((sum(extant$parent[i]==extant$child)==0) & (extant$parent[i]!=origin)){
+          ind = which(extant$parent[i]==extinct$child)
+          new.extant.row<-extinct[ind,]
+          new.extant.row[3]<-extant$child[i]
+          new.extinct.row <- extant[i,c(1,3,2)]
+          extant[i,]<-new.extant.row
+          extinct[ind,]<-new.extinct.row
+        } else {
+          i <- i+1
         }
-      } else {
-        ext_tree<-ext_tree[-i,]
-        i<-i-1
       }
-    }
-    i<-i+1
+      extant$parent[1]<-origin
+      extant$parent[2]<-extant$child[1]
+    } 
+  } else {
+    extant = tree$extant
   }
-  ext_tree$t_ext<-NULL
-  return(ext_tree)
+  if (extant$parent[2]==origin){
+    extant[c(1,2),]=extant[c(2,1),]
+  }
+  return(extant)
 }
 
 etree2phylo <- function(etree){
   extant = get_extant(etree$ct,etree)
+  extant$parent[2] = extant$child[1]
   nw = newick(tree = extant,CT = etree$ct)
   tr = ape:::read.tree(text=nw)
   return(tr)
