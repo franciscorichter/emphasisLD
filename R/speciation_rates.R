@@ -24,12 +24,12 @@ sum_of_rates <- function(tm,
   val = speciation_rate(tm = tm,
                   tree=tree,diversification_model = 
                   diversification_model,sum_rates = 
-                  T)# + 
-      #  extinction_rate(tm,
-       #            tree,
-        #           diversification_model,
-         #          TRUE)
-  val = 1
+                  T) + 
+        extinction_rate(tm,
+                   tree,
+                   diversification_model,
+                   TRUE)
+ 
   return(val)
 }
 
@@ -65,18 +65,17 @@ lambda.rpd5c <- function(tm,tree,pars,sum_lambda=FALSE){
   
 }
 
-lambda.ldpd1 <- function(tm,
+lambda.ldpd <- function(tm,
                         tree,
                         pars,
                         sum_rates=FALSE){
   tree_extant = get_extant(tm,tree)
-  if(tm==0){
-    gpd=0
-  }else{ 
-    gpd = GPD(tree_extant,tm)
-  }
+  gpd = GPD(tree_extant,tm)
   N = nrow(gpd)
-  lambdas = pmax(0,rep(pars[2] + pars[3]*N,times=N) + pars[4]*colSums(gpd)/(N-1))
+  rates = pars[2] + pars[3]*N+ pars[4]*colSums(gpd)/(N-1)
+  species = names(rates)
+  lambdas = pmax(0,rates)
+  names(lambdas) = species
   if(sum_rates) lambdas = sum(lambdas)
   return(lambdas)
 }
@@ -87,13 +86,12 @@ lambda.ldpd2 <- function(tm,
                          pars,
                          sum_rates=FALSE){
   tree_extant = get_extant(tm,tree)
-  if(tm==0){
-    gpd=0
-  }else{ 
-    gpd = GPD(tree_extant,tm)
-  }
+  gpd = GPD(tree_extant,tm)
   N = nrow(gpd)
-  lambdas = pmax(0,rep(pars[2] + pars[3]*N,times=N) + pars[4]/(colSums(gpd)/(N-1)))
+  rates = pars[2] + pars[3]*N + (pars[4]*(N-1))/colSums(gpd)
+  species = names(rates)
+  lambdas = pmax(0,rates)
+  names(lambdas) = species
   if(sum_rates) lambdas = sum(lambdas)
   return(lambdas)
 }

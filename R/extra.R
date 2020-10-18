@@ -15,11 +15,14 @@ get_extant <- function(tm,tree){
       while (i <= nrow(extant)){
         if ((sum(extant$parent[i]==extant$child)==0) & (extant$parent[i]!=origin)){
           ind = which(extant$parent[i]==extinct$child)
+          ind2 = which(extinct$parent==extant$parent[i] & extinct$brts < extant$brts[i])
+          child = extant$child[i]
           new.extant.row<-extinct[ind,]
-          new.extant.row[3]<-extant$child[i]
+          new.extant.row[3]<-child
           new.extinct.row <- extant[i,c(1,3,2)]
           extant[i,]<-new.extant.row
           extinct[ind,]<-new.extinct.row
+          extinct$parent[ind2]<- child
         } else {
           i <- i+1
         }
@@ -30,11 +33,13 @@ get_extant <- function(tm,tree){
   } else {
     extant = tree$extant
   }
+  extant = extant[order(extant$brts),]
   if (extant$parent[2]==origin){
     extant[c(1,2),]=extant[c(2,1),]
   }
   return(extant)
 }
+
 
 etree2phylo <- function(etree){
   extant = get_extant(etree$ct,etree)
@@ -70,6 +75,7 @@ phylo2etree <- function(phylo){
   class(tree)="etree"
   return(tree)
 }
+
 
 GPD<- function(tree,tm){
   # input: an ultramedric tree defined by a data.frame
@@ -222,11 +228,6 @@ get_required_sampling_size <- function(M,tol=.05){
   return(n.r)
 }
 
-get_current_species <- function(tm,tree){
-  species = c(tree$extant$child[tree$extant$brts<tm],
-              tree$extinct$child[tree$extinct$t_ext>tm])
-  return(species)
-}
 
 # time calculation
 get_time <- function(time,mode='sec'){

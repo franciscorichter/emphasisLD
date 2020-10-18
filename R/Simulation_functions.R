@@ -47,7 +47,7 @@ sample_tree_full <- function(diversification_model,ct,nhpp_step=1){
     }
     cbt = min(event_time, next_bt)
   }
-  tree$extant$clade=NULL
+  #tree$extant$clade=NULL
   class(tree)="etree"
   return(tree)
 }
@@ -69,8 +69,7 @@ draw_allocation_full <- function(event_time,
   to = sample(c("e","s"),1,prob = c(mu/(mu+lambda),lambda/(mu+lambda))) 
   
   ## choose species
-  current_species <- get_current_species(tm = event_time,
-                                         tree = tree)
+  current_species <- names(l)
   if(to=="e") probs = m
   if(to=="s") probs = l
   
@@ -88,12 +87,11 @@ draw_event_time <- function(cbt,
                             tree){
   
   
-  nsr = sum_of_rates
-  
+
   key = 0 
   while(key == 0 & cbt < next_bt){
     lambda_max = optim(cbt,
-                       fn = nsr,
+                       fn = sum_of_rates,
                        tree = tree,
                        diversification_model = diversification_model,
                        lower = cbt,
@@ -111,7 +109,7 @@ draw_event_time <- function(cbt,
     if(cbt < next_bt){
       u2 = runif(1)
       
-      pt = nsr(cbt,
+      pt = sum_of_rates(cbt,
                tree,
                diversification_model)/lambda_max
       
