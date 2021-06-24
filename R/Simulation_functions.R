@@ -47,7 +47,7 @@ sample_tree_full <- function(diversification_model,ct,nhpp_step=1){
     }
     cbt = min(event_time, next_bt)
   }
-  #tree$extant$clade=NULL
+  tree$ct = ct 
   class(tree)="etree"
   return(tree)
 }

@@ -209,13 +209,17 @@ foo <- function(phylo, metric = "colless") {
   } else stop("metric should be one of colless or gamma")
 }
 
-#phylodiversity <- function(tm,tree,soc){
-#  i1<-tree$brts<=tm 
-#  i2<-tree$to==0&i1
-#  i3<-tree$t_ext%in%tree$brts[i2]
-#  dt<-diff(c(0,tree$brts[i1&!i2&!i3],tm))
-#  return(sum(dt*(soc:(length(dt)+soc-1))))
-#}
+phylodiversity <- function(tree,tm){
+  # input: an ultrametric tree
+  if(!is.null(tree$extant)){
+    tree = get_extant(tm=tm,tree=tree)
+  }else{
+    tree = tree[tree$brts<tm,]
+  }
+  dif<-diff(c(tree$brts[-1],tm))
+  return(sum(dif*(2:(length(dif)+1))))
+}
+
 
 get_required_sampling_size <- function(M,tol=.05){
   n <- M$sample_size

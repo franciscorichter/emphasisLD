@@ -2,6 +2,22 @@ n_spec <- function(cutime,brts,soc=2){
   soc+sum(brts<cutime) 
 }
 
+
+plot.etree<-function(etree.object){
+  extant=get_extant(etree.object$ct,etree.object)
+  nw<-newick(extant,etree.object$ct)
+  ggtree:::ggtree((ape:::read.tree(text=nw)))
+}
+
+plot_multi_histogram <- function(df, feature, label_column) {
+  plt <- ggplot(df, aes(x=eval(parse(text=feature)), fill=eval(parse(text=label_column)))) +
+    geom_histogram(alpha=0.7, position="identity", aes(y = ..density..), color="black") +
+    geom_density(alpha=0.7) +
+ #   geom_vline(aes(xintercept=mean(eval(parse(text=feature)))), color="black", linetype="dashed", size=1) +
+    labs(x=feature, y = "Density")
+  plt + guides(fill=guide_legend(title=label_column))
+}
+
 n_spec_r <- function(cutime,brts,soc=2){
   soc+sum(brts>cutime) 
 }

@@ -65,14 +65,14 @@ lambda.rpd5c <- function(tm,tree,pars,sum_lambda=FALSE){
   
 }
 
-lambda.ldpd <- function(tm,
+lambda.ldpd1 <- function(tm,
                         tree,
                         pars,
                         sum_rates=FALSE){
   tree_extant = get_extant(tm,tree)
   gpd = GPD(tree_extant,tm)
   N = nrow(gpd)
-  rates = pars[2] + pars[3]*N+ pars[4]*colSums(gpd)/(N-1)
+  rates = pars[2] + pars[3]*(N-2) + pars[4]*(mean(colSums(gpd))-colSums(gpd))/(N-1)
   species = names(rates)
   lambdas = pmax(0,rates)
   names(lambdas) = species
@@ -88,7 +88,7 @@ lambda.ldpd2 <- function(tm,
   tree_extant = get_extant(tm,tree)
   gpd = GPD(tree_extant,tm)
   N = nrow(gpd)
-  rates = pars[2] + pars[3]*N + (pars[4]*(N-1))/colSums(gpd)
+  rates = pars[2] + pars[3]*(N-2) + pars[4]*(colSums(gpd)-mean(colSums(gpd)))
   species = names(rates)
   lambdas = pmax(0,rates)
   names(lambdas) = species
